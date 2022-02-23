@@ -1,0 +1,6 @@
+GCP_Key: 
+  Key_Location: '/Users/CarlosMonsivais/Desktop/CPI Project/cpi-tfx-203342181a05.json'
+
+BigQuery: 
+  GCP_Project_ID: cpi-tfx
+  BigQuery_Dataset_ID: BLS_Data
