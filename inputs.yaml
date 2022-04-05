@@ -4,3 +4,7 @@ GCP_Key:
 BigQuery: 
   GCP_Project_ID: cpi-tfx
   BigQuery_Dataset_ID: BLS_Data
+
+GCP_Bucket:
+  GCP_Project_ID_Bucket: cpi-tfx
+  GCP_Bucket_Name: cpi_bucket
