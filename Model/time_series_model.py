@@ -1,6 +1,7 @@
 from turtle import onclick
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -24,76 +25,37 @@ train_data['month'] = train_data['date'].dt.month
 train_data['year'] = train_data['date'].dt.year
 train_data.sort_values(by = ['date'], inplace = True, ascending = True)
 
-# Try this when I get home bacfill the dataframe with nan based on the date being 12 on the monthly basis
-# train_data.bfill()
-# print(train_data)
+train_data.set_index('date', inplace = True, drop = False)
+train_data.index = train_data.index.to_pydatetime()
+train_data.asfreq('MS')
 
-seasonal_months = train_data.groupby('year')['month'].apply(np.array).reset_index(name='months')['months'].to_numpy()
-seasonal_months_array = np.reshape(seasonal_months, (seasonal_months.shape[0], -1))
+minimum_year = '01/01/{}'.format(train_data['year'].iloc[0])
+minimum_year_date = datetime.strptime(minimum_year, '''%m/%d/%Y''')
 
-# print(seasonal_months_array)
+maximum_year = '12/01/{}'.format(train_data['year'].iloc[-1])
+maximum_year_date = datetime.strptime(maximum_year, '''%m/%d/%Y''')
 
-fix_this_array = np.array([[np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, 12],
-[np.nan, np.nan, np.nan, np.nan, np.nan, 6, np.nan, np.nan, np.nan, np.nan, np.nan, 12],
-[np.nan, np.nan, np.nan, np.nan, np.nan, 6, np.nan, np.nan, np.nan, np.nan, np.nan, 12],
-[np.nan, np.nan, 3, np.nan, np.nan, 6, np.nan, np.nan, 9, np.nan, np.nan, 12],
-[np.nan, np.nan, 3, np.nan, np.nan, 6, np.nan, np.nan, 9, np.nan, np.nan, 12],
-[np.nan, np.nan, 3, np.nan, np.nan, 6, np.nan, np.nan, 9, np.nan, np.nan, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12],
-[1, 2, 3, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]])
+idx = pd.period_range(minimum_year_date, maximum_year_date, freq = 'M')
+idx = idx.to_timestamp(freq = None)
 
-# print(fix_this_array)
+train_data.reset_index(inplace = True, drop = False)
 
+data = {'index': idx}
+all_timestamps_df = pd.DataFrame(data = data)
 
+final_train_data = train_data.merge(all_timestamps_df, on=['index'], how='outer')
+final_train_data.sort_values(by = 'index', inplace = True)
+final_train_data.reset_index(inplace = True, drop = True)
 
+shape_1 = int(len(final_train_data)/12)
+seasonal_array = final_train_data['month'].to_numpy().reshape((shape_1, -1))
 
 def model_1(observed_time_series):   
     trend = sts.LocalLinearTrend(observed_time_series = observed_time_series,
                                  name = 'trend')
 
     seasonal = sts.Seasonal(num_seasons = 12,
-                            num_steps_per_season = fix_this_array,
+                            num_steps_per_season = seasonal_array,
                             observed_time_series = observed_time_series,
                             name = 'yearly')  
 
@@ -161,5 +123,5 @@ component_breakdowns = component_breakdown(model = time_series_model,
 component_means_ = component_breakdowns[0]
 component_stddevs_ = component_breakdowns[1]
 
-print(component_means_)
-print(component_stddevs_)
+# print(component_means_)
+# print(component_stddevs_)
