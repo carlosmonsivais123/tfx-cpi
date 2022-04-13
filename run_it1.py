@@ -13,6 +13,8 @@ print('Finished Mapping Variables')
 download_data_bls.download_and_push_to_bq()
 print('Data Has Been Pushed to BigQuery')
 
+
+
 # Pushing Data into GCP Buckets and Splitting it int Training and Testing
 # 80% Training and 20% Testing
 send_data_gcs_bucket = Send_Data_To_Bucket()
