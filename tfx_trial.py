@@ -50,6 +50,8 @@ PIPELINE_NAME = 'pipeline-trial1'
 PIPELINE_ROOT = os.path.join(ARTIFACT_STORE, PIPELINE_NAME, time.strftime("%Y%m%d_%H%M%S"))
 os.makedirs(PIPELINE_ROOT, exist_ok=True)
 
-print(ARTIFACT_STORE)
-print(SERVING_MODEL_DIR)
-print(PIPELINE_ROOT)
+input = example_gen_pb2.Input(splits=[example_gen_pb2.Input.Split(name='train', pattern='train/*'),
+                                      example_gen_pb2.Input.Split(name='eval', pattern='eval/*')])
+example_gen = CsvExampleGen(input_base = DATA_ROOT, 
+                            input_config = input)
+print(example_gen)
