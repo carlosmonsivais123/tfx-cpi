@@ -1,0 +1,58 @@
+feature {
+  name: "date"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: BYTES
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "item"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: BYTES
+  domain: "item"
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "series_id"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: BYTES
+  domain: "series_id"
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "value"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: FLOAT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+string_domain {
+  name: "item"
+  value: "Airline fares"
+}
+string_domain {
+  name: "series_id"
+  value: "CUUR0000SETG01   "
+}
