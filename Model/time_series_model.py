@@ -38,8 +38,7 @@ class TensorFlow_Time_Series_Model:
         elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = observed_time_series),
                                                                 surrogate_posterior = variational_posteriors,
                                                                 optimizer = tf.optimizers.Adam(learning_rate = 0.1),
-                                                                num_steps = num_variational_steps,
-                                                                jit_compile = True)
+                                                                num_steps = num_variational_steps)
 
         # Draw samples from the variational posterior.
         q_samples_var = variational_posteriors.sample(50)
