@@ -111,14 +111,15 @@ def _build_model(observed_time_series, seasonal_array):
 
     return model
 
-def save_model(object_to_save, file_name):
-    with open('{}.pkl'.format(file_name), 'wb') as f:
+def save_model(object_to_save, send_model_to, model_name):
+    temp_path = os.path.join(send_model_to, model_name)
+    os.makedirs(send_model_to)
+    with open('{}'.format(temp_path), 'wb') as f:
         pickle.dump(object_to_save, f)
 
 
-def run_fn(fn_args: TrainerFnArgs):
-    serving_model_directory = fn_args.serving_model_dir
 
+def run_fn(fn_args: TrainerFnArgs):
     schema = io_utils.parse_pbtxt_file(fn_args.schema_file, schema_pb2.Schema())
     train_dataset = _input_fn(file_pattern = fn_args.train_files,
                               data_accessor = fn_args.data_accessor,
@@ -131,45 +132,41 @@ def run_fn(fn_args: TrainerFnArgs):
 
     model = _build_model(observed_time_series = train_dataset['value'], seasonal_array = seasonal_array)
 
-    # ########## Variational Loss Function ##########
-    variational_posteriors = tfp.sts.build_factored_surrogate_posterior(model = model)
+    # # ########## Variational Loss Function ##########
+    # variational_posteriors = tfp.sts.build_factored_surrogate_posterior(model = model)
     
-    # Allow external control of optimization to reduce test runtimes.
-    num_variational_steps = 100 # @param { isTemplate: true}
-    num_variational_steps = int(num_variational_steps)
+    # # Allow external control of optimization to reduce test runtimes.
+    # num_variational_steps = 100 # @param { isTemplate: true}
+    # num_variational_steps = int(num_variational_steps)
 
-    # Build and optimize the variational loss function.
-    elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = train_dataset['value']),
-                                                            surrogate_posterior = variational_posteriors,
-                                                            optimizer = tf.optimizers.Adam(learning_rate = 0.1),
-                                                            num_steps = num_variational_steps)
+    # # Build and optimize the variational loss function.
+    # elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = train_dataset['value']),
+    #                                                         surrogate_posterior = variational_posteriors,
+    #                                                         optimizer = tf.optimizers.Adam(learning_rate = 0.1),
+    #                                                         num_steps = num_variational_steps)
 
-    # Draw samples from the variational posterior.
-    q_samples_var = variational_posteriors.sample(50)
+    # # Draw samples from the variational posterior.
+    # q_samples_var = variational_posteriors.sample(50)
 
 
-    ########## Component Breakdown ##########
-    component_dists = sts.decompose_by_component(model = model, 
-                                                 observed_time_series = train_dataset['value'], 
-                                                 parameter_samples = q_samples_var)
+    # ########## Component Breakdown ##########
+    # component_dists = sts.decompose_by_component(model = model, 
+    #                                              observed_time_series = train_dataset['value'], 
+    #                                              parameter_samples = q_samples_var)
     
-    component_means_vals, component_stddevs_vals = ({k.name: c.mean() for k, c in component_dists.items()},
-                                                    {k.name: c.stddev() for k, c in component_dists.items()})
+    # component_means_vals, component_stddevs_vals = ({k.name: c.mean() for k, c in component_dists.items()},
+    #                                                 {k.name: c.stddev() for k, c in component_dists.items()})
 
 
 
-    ########## One Step Predictions ##########     
-    one_step_dist = sts.one_step_predictive(model = model,
-                                            observed_time_series = train_dataset['value'],
-                                            parameter_samples = q_samples_var)
+    # ########## One Step Predictions ##########     
+    # one_step_dist = sts.one_step_predictive(model = model,
+    #                                         observed_time_series = train_dataset['value'],
+    #                                         parameter_samples = q_samples_var)
     
-    one_step_mean_var, one_step_scale_var = (one_step_dist.mean().numpy(), one_step_dist.stddev().numpy())
+    # one_step_mean_var, one_step_scale_var = (one_step_dist.mean().numpy(), one_step_dist.stddev().numpy())
 
-    # model_name = 'test_model'
-    # path_to_send_model = os.path.join(serving_model_directory, model_name)
 
-    path_to_send_model1 = 'artifact-store/pipeline-trial1/20220419_175854/Trainer/model/42/test_model.pkl'
-    path_to_send_model2 = 'artifact-store/pipeline-trial1/20220419_175854/Trainer/model_run/42/test_model.pkl'
-
-    save_model(object_to_save = model, file_name = path_to_send_model1)
-    save_model(object_to_save = model, file_name = path_to_send_model2)
+    serving_model_directory = fn_args.serving_model_dir
+    model_filename = 'test_model.pkl'
+    save_model(object_to_save = model, send_model_to = serving_model_directory, model_name = model_filename)
