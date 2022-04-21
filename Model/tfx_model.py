@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from datetime import datetime
 import tensorflow_probability as tfp
 from tensorflow_probability import sts
 
@@ -23,7 +24,6 @@ import dill as pickle
 # from Plots.plotly_plots import Plot_Model_Ouptuts
 
 def seasonality_matrix(train_data):
-    print(train_data)
     train_data = train_data.astype({'series_id': str, 
                                     'value': float, 
                                     'date': 'datetime64[ns]',
@@ -59,13 +59,11 @@ def seasonality_matrix(train_data):
 
     return seasonal_array
 
-def _gzip_reader_fn(filenames):
-    
-    '''Loads compressed data'''
-    return tf.data.TFRecordDataset(filenames, compression_type='GZIP')
 
-
-def _input_fn(file_pattern, data_accessor: DataAccessor, schema, batch_size: int = 200) -> tf.data.Dataset:
+def _input_fn(file_pattern, 
+              data_accessor: DataAccessor, 
+              schema, 
+              batch_size: int = 200) -> tf.data.Dataset:
     """Generates features and label for training.
 
     Args:
@@ -77,17 +75,23 @@ def _input_fn(file_pattern, data_accessor: DataAccessor, schema, batch_size: int
     A dataset that contains (features, indices) tuple where features is a
         dictionary of Tensors, and indices is a single Tensor of label indices.
     """
-    return data_accessor.tf_dataset_factory(file_pattern, dataset_options.TensorFlowDatasetOptions(batch_size=batch_size, shuffle = False, num_epochs = 1), schema).repeat(1)
 
+    dataset = data_accessor.tf_dataset_factory(file_pattern, 
+                                               dataset_options.TensorFlowDatasetOptions(batch_size = batch_size, 
+                                                                                        shuffle = False, 
+                                                                                        num_epochs = 1), schema).repeat(1)
 
+    data_dict = {'date': [], 'value': [], 'item': [], 'series_id': []}
 
-@tf.function(experimental_compile = True)
-def train(model, observed_time_series, variational_posteriors, num_variational_steps, optimizer = tf.optimizers.Adam(learning_rate = 0.1)):
-    elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = observed_time_series),
-                                                         surrogate_posterior = variational_posteriors,
-                                                         optimizer = optimizer,
-                                                         num_steps = num_variational_steps)
-    return elbo_loss_curve_var
+    for element in dataset:
+        data_dict['date'].append(tf.sparse.to_dense(element['date']).numpy().flatten()[0].decode('utf-8'))
+        data_dict['value'].append(tf.sparse.to_dense(element['value']).numpy().flatten()[0])
+        data_dict['item'].append(tf.sparse.to_dense(element['item']).numpy().flatten()[0].decode('utf-8'))
+        data_dict['series_id'].append(tf.sparse.to_dense(element['series_id']).numpy().flatten()[0].decode('utf-8'))
+        
+    df_test = pd.DataFrame.from_dict(data_dict)
+
+    return df_test
 
 
 def _build_model(observed_time_series, seasonal_array):
@@ -113,59 +117,40 @@ def save_model(object_to_save, file_name):
 
 
 def run_fn(fn_args: TrainerFnArgs):
-    # environment = fn_args.custom_config['environment']
-    # fn_args.custom_config.pop('environment')
-
-    # trainer_settings = fn_args.custom_config['trainer_settings']
-    # fn_args.custom_config.pop('trainer_settings')
-
-    print(fn_args)
-
-    # train_dataset_test= _gzip_reader_fn(filenames = fn_args.train_files)
-    # print(train_dataset_test)
-
+    serving_model_directory = fn_args.serving_model_dir
 
     schema = io_utils.parse_pbtxt_file(fn_args.schema_file, schema_pb2.Schema())
-    train_dataset = _input_fn(fn_args.train_files,
-                              fn_args.data_accessor,
-                              schema,
-                              batch_size=200)    
-
-
+    train_dataset = _input_fn(file_pattern = fn_args.train_files,
+                              data_accessor = fn_args.data_accessor,
+                              schema = schema,
+                              batch_size=1)  
 
     
 
     seasonal_array = seasonality_matrix(train_data = train_dataset)
 
-    model = _build_model(observed_time_series = train_dataset, seasonal_array = seasonal_array)
-# def variational_loss_function(self, model, observed_time_series):
+    model = _build_model(observed_time_series = train_dataset['value'], seasonal_array = seasonal_array)
 
     # ########## Variational Loss Function ##########
     variational_posteriors = tfp.sts.build_factored_surrogate_posterior(model = model)
-    # # Allow external control of optimization to reduce test runtimes.
-    # num_variational_steps = 200 # @param { isTemplate: true}
-    # num_variational_steps = int(num_variational_steps)
-    # # Build and optimize the variational loss function.
-    # elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = observed_time_series),
-    #                                                         surrogate_posterior = variational_posteriors,
-    #                                                         optimizer = tf.optimizers.Adam(learning_rate = 0.1),
-    #                                                         num_steps = num_variational_steps,
-    #                                                         jit_compile = True)
-    # Draw samples from the variational posterior.
-
-    elbo_loss_curve = train(model = model, 
-                            observed_time_series = train_dataset, 
-                            variational_posteriors = variational_posteriors, 
-                            num_variational_steps = 200, 
-                            optimizer = tf.optimizers.Adam(learning_rate = 0.1))
-
-    q_samples_var = variational_posteriors.sample(50)
     
+    # Allow external control of optimization to reduce test runtimes.
+    num_variational_steps = 100 # @param { isTemplate: true}
+    num_variational_steps = int(num_variational_steps)
+
+    # Build and optimize the variational loss function.
+    elbo_loss_curve_var = tfp.vi.fit_surrogate_posterior(target_log_prob_fn = model.joint_log_prob(observed_time_series = train_dataset['value']),
+                                                            surrogate_posterior = variational_posteriors,
+                                                            optimizer = tf.optimizers.Adam(learning_rate = 0.1),
+                                                            num_steps = num_variational_steps)
+
+    # Draw samples from the variational posterior.
+    q_samples_var = variational_posteriors.sample(50)
 
 
     ########## Component Breakdown ##########
     component_dists = sts.decompose_by_component(model = model, 
-                                                 observed_time_series = train_dataset, 
+                                                 observed_time_series = train_dataset['value'], 
                                                  parameter_samples = q_samples_var)
     
     component_means_vals, component_stddevs_vals = ({k.name: c.mean() for k, c in component_dists.items()},
@@ -175,10 +160,16 @@ def run_fn(fn_args: TrainerFnArgs):
 
     ########## One Step Predictions ##########     
     one_step_dist = sts.one_step_predictive(model = model,
-                                            observed_time_series = train_dataset,
+                                            observed_time_series = train_dataset['value'],
                                             parameter_samples = q_samples_var)
     
     one_step_mean_var, one_step_scale_var = (one_step_dist.mean().numpy(), one_step_dist.stddev().numpy())
 
+    # model_name = 'test_model'
+    # path_to_send_model = os.path.join(serving_model_directory, model_name)
 
-    save_model(object_to_save = model, file_name = 'test_model')
+    path_to_send_model1 = 'artifact-store/pipeline-trial1/20220419_175854/Trainer/model/42/test_model.pkl'
+    path_to_send_model2 = 'artifact-store/pipeline-trial1/20220419_175854/Trainer/model_run/42/test_model.pkl'
+
+    save_model(object_to_save = model, file_name = path_to_send_model1)
+    save_model(object_to_save = model, file_name = path_to_send_model2)
